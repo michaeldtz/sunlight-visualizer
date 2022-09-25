@@ -1,21 +1,10 @@
 {
-  "name": "webgl-overlay-simple",
+  "name": "webgl-with-threejs",
   "description": "Samples for Google Maps JavaScript",
   "version": "2.1.4",
   "keywords": [
-    "google",
-    "javascript",
-    "maps",
-    "samples"
+    "webgl"
   ],
-  "homepage": "https://github.com/googlemaps/js-samples#readme",
-  "bugs": {
-    "url": "https://github.com/googlemaps/js-samples/issues"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/googlemaps/js-samples.git"
-  },
   "files": [],
   "license": "Apache-2.0",
   "scripts": {
@@ -32,7 +21,6 @@
   },
   "private": true,
   "dependencies": {
-    "@googlemaps/three": "^3.0.1",
     "three": "^0.144.0"
   }
 }

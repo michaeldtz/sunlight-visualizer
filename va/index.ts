@@ -1,117 +1,120 @@
-/**
- * @license
- * Copyright 2021 Google LLC.
- * SPDX-License-Identifier: Apache-2.0
- */
-
-import {
-  AmbientLight,
-  DirectionalLight,
-  Matrix4,
-  PerspectiveCamera,
-  Scene,
-  WebGLRenderer,
-} from "three";
-
+import * as THREE from "three"
+import { ThreeJSOverlayView } from "@googlemaps/three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+
+import { drawBPs } from "./drawbp";
+import { configureControls } from "./controls";
 
 let map: google.maps.Map;
 
 const mapOptions = {
-  tilt: 0,
+  tilt: 60,
   heading: 0,
-  zoom: 18,
-  center: { lat: 35.6594945, lng: 139.6999859 },
-  mapId: "15431d2b469f209e",
+  zoom: 19,
+  center: { lat: 49.672318, lng: 7.988749 },
+  //mapId: "15431d2b469f209e",
+  //mapId: "7a965f70695bc017",
+  mapId: "8e0a97af9386fef",
+  
   // disable interactions due to animation loop and moveCamera
   disableDefaultUI: true,
-  gestureHandling: "none",
-  keyboardShortcuts: false,
+  //gestureHandling: "none",
+  keyboardShortcuts: true,
 };
 
 function initMap(): void {
   const mapDiv = document.getElementById("map") as HTMLElement;
   map = new google.maps.Map(mapDiv, mapOptions);
-  initWebglOverlayView(map);
+
+  drawBPs(map);
+  configureControls(map);
+  //drawWebGL(map);
+
 }
 
-function initWebglOverlayView(map: google.maps.Map): void {
-  let scene, renderer, camera, loader;
-  const webglOverlayView = new google.maps.WebGLOverlayView();
+function drawWebGL(map){
 
-  webglOverlayView.onAdd = () => {
-    // Set up the scene.
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color('white');
 
-    scene = new Scene();
+  const camera = new THREE.PerspectiveCamera();  
 
-    camera = new PerspectiveCamera();
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
+  scene.add(ambientLight);
 
-    const ambientLight = new AmbientLight(0xffffff, 0.75); // Soft white light.
-    scene.add(ambientLight);
+  const skyColor = 0xB1E1FF;  // light blue
+  const groundColor = 0xB97A20;  // brownish orange
+  const intensity = 2;
+  const light = new THREE.HemisphereLight(skyColor, groundColor, intensity);
+  //scene.add(light);
 
-    const directionalLight = new DirectionalLight(0xffffff, 0.25);
-    directionalLight.position.set(0.5, -1, 0.5);
-    scene.add(directionalLight);
+  const sunPos = [1,10,50];
+  const materialSun = new THREE.MeshPhongMaterial({color: 0xFFFF00});
+  //const geometry = new THREE.SphereGeometry(radius, widthSegments, heightSegments);
+  const sun = new THREE.Mesh(new THREE.SphereGeometry(1), materialSun);
+  sun.position.set(sunPos[0], sunPos[1], sunPos[2]);
+  scene.add(sun);
 
-    // Load the model.
-    loader = new GLTFLoader();
-    const source =
-      "https://raw.githubusercontent.com/googlemaps/js-samples/main/assets/pin.gltf";
-    loader.load(source, (gltf) => {
-      gltf.scene.scale.set(10, 10, 10);
-      gltf.scene.rotation.x = Math.PI; // Rotations are in radians.
-      scene.add(gltf.scene);
-    });
-  };
+  const sunlight = new THREE.DirectionalLight(0xFFFF00, 1.0);
+  sunlight.position.set(sunPos[0], sunPos[1], sunPos[2]);
+  sunlight.target.position.set(10,6,10);
+  sunlight.castShadow = true;
+  scene.add(sunlight);
+  scene.add(sunlight.target);
 
-  webglOverlayView.onContextRestored = ({ gl }) => {
-    // Create the js renderer, using the
-    // maps's WebGL rendering context.
-    renderer = new WebGLRenderer({
-      canvas: gl.canvas,
-      context: gl,
-      ...gl.getContextAttributes(),
-    });
-    renderer.autoClear = false;
+  // const sunlight = new THREE.PointLight(0xFFFF00, 1.0);
+  // sunlight.position.set(sunPos[0], sunPos[1], sunPos[2]);
+  // sunlight.castShadow = true;
+  // scene.add(sunlight);
 
-    // Wait to move the camera until the 3D model loads.
-    loader.manager.onLoad = () => {
-      renderer.setAnimationLoop(() => {
-        webglOverlayView.requestRedraw();
-        const { tilt, heading, zoom } = mapOptions;
-        map.moveCamera({ tilt, heading, zoom });
+  const materialGrass = new THREE.MeshPhongMaterial({color: 0x33aa44});
+  materialGrass.receiveShadow = true;
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(400, 0.01, 400), materialGrass);
+  floor.position.x = -30;
+  floor.position.y = 0;
+  floor.position.z = 0;
+  scene.add(floor);
 
-        // Rotate the map 360 degrees.
-        if (mapOptions.tilt < 67.5) {
-          mapOptions.tilt += 0.5;
-        } else if (mapOptions.heading <= 360) {
-          mapOptions.heading += 0.2;
-          mapOptions.zoom -= 0.0005;
-        } else {
-          renderer.setAnimationLoop(null);
-        }
-      });
+  const materialHouse = new THREE.MeshPhongMaterial({color: 0x666666});
+  materialHouse.receiveShadow = true;
+  materialHouse.flatShading = true;
+  materialGrass.castShadow = true;
+
+  const house = new THREE.Mesh(new THREE.BoxGeometry(10, 6, 10), materialHouse);
+  
+  house.position.x = -13;
+  house.position.y = 10;
+  house.position.z = 10;
+  scene.add(house);
+
+  const house2 = new THREE.Mesh(new THREE.BoxGeometry(10, 6, 10), materialHouse);
+  house2.position.x = 10;
+  house2.position.y = 10;
+  house2.position.z = 10;
+  //house2.Rotate
+  scene.add(house2);
+
+  const cameraHelper = new THREE.CameraHelper(sunlight.shadow.camera);
+  scene.add(cameraHelper);
+
+  let { tilt, heading, zoom } = mapOptions;
+
+    const animate = () => {
+      //house.position.z += 1;
+      requestAnimationFrame(animate);
     };
-  };
 
-  webglOverlayView.onDraw = ({ gl, transformer }): void => {
-    const latLngAltitudeLiteral: google.maps.LatLngAltitudeLiteral = {
-      lat: mapOptions.center.lat,
-      lng: mapOptions.center.lng,
-      altitude: 100,
-    };
+  requestAnimationFrame(animate);
 
-    // Update camera matrix to ensure the model is georeferenced correctly on the map.
-    const matrix = transformer.fromLatLngAltitude(latLngAltitudeLiteral);
-    camera.projectionMatrix = new Matrix4().fromArray(matrix);
 
-    webglOverlayView.requestRedraw();
-    renderer.render(scene, camera);
+  const threeov = new ThreeJSOverlayView({
+    map,
+    scene,
+    anchor: { ...mapOptions.center, altitude: 0 },
+    THREE,
+  });
 
-    // Sometimes it is necessary to reset the GL state.
-    renderer.resetState();
-  };
-  webglOverlayView.setMap(map);
+  
 }
 
 declare global {
