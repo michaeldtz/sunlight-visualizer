@@ -1,6 +1,62 @@
 import * as THREE from "three"
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
+import SunCalc from "suncalc"
+import GUI from 'lil-gui'; 
 
+
+class DateKeeper {
+  _date: Date;
+  _hour: number;
+  _min: number;
+  _animate: boolean;
+  
+  constructor(date, hour, min, animate){
+    this._date = date;
+    this._hour = hour;
+    this._min = min;
+    this._animate = animate;
+  }
+
+  get animate(){
+    return this._animate ;
+  }
+  
+  set animate(animate){
+    this._animate = animate;
+  }
+
+  get date() {
+    return this._date
+  }
+  set date(dateInp) {
+    this._date = dateInp;
+  }
+
+  get hour() {
+    return this._hour
+  }
+  set hour(hourInp) {
+    this._hour = hourInp;
+    while(this._hour > 24){
+      this._hour -= 24;
+    }
+  }
+
+  get minute() {
+    return this._min
+  }
+  set minute(minuteInp) {
+    this._min = minuteInp;
+    while(this._min > 60){
+      this.hour += 1;
+      this._min -= 60;
+    }
+  }
+  
+  public getDate(){
+    return new Date(this.date + " " + this.hour + ":" + this.minute + ":00");
+  }
+}
 
 function main() {
     const canvas = document.querySelector('#c');
@@ -22,23 +78,22 @@ function main() {
     const scene = new THREE.Scene();
     scene.background = new THREE.Color('white');
 
-    drawPlane(scene);
+    drawPlane(scene, true);
 
     const house1 = constructHouse(8,11,4.5,7);
-    house1.position.set(-12,2.25,34.8);
+    house1.position.set(0,2.25,0);
     house1.rotation.y = THREE.MathUtils.degToRad(-20 );
     scene.add(house1);
 
     const house2 = constructHouse(8,11,4.5,7);
-    house2.position.set(-28,2.25,32.3);
+    house2.position.set(-16,2.25,-2);
     house2.rotation.y = THREE.MathUtils.degToRad(-2);
     scene.add(house2);
 
     const house3 = constructHouse(8,11,4.5,7);
-    house3.position.set(2,2.25,45.3);
+    house3.position.set(14,2.25,11);
     house3.rotation.y = THREE.MathUtils.degToRad(-40);
     scene.add(house3);
-
 
     const color = 0xFFFFFF;
     const intensity = 1;
@@ -46,68 +101,56 @@ function main() {
     scene.add(light)
 
     const sun = constructSunlight(scene);
+    sun.rotation.x = Math.PI * 0.5;
+    //sun.rotation.z = 0.4;
     scene.add(sun);
- 
-
-
-    /*
-    const skyColor = 0xB1E1FF;  // light blue
-    const groundColor = 0xB97A20;  // brownish orange
-    const intensity = 1;
-    const light = new THREE.HemisphereLight(skyColor, groundColor, intensity);
-    scene.add(light);
-
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
-    //scene.add(ambientLight);
+  
+    const lat = 49.672268;
+    const lng = 7.989103;
 
     
-
-
-
-    // const sunlight = new THREE.PointLight(0xFFFF00, 1.0);
-    // sunlight.position.set(sunPos[0], sunPos[1], sunPos[2]);
-    // sunlight.castShadow = true;
-    // scene.add(sunlight);
-
-    const materialGrass = new THREE.MeshPhongMaterial({color: 0x33aa44});
-    materialGrass.receiveShadow = true;
-    const floor = new THREE.Mesh(new THREE.BoxGeometry(20, 1, 20), materialGrass);
-    floor.position.x = 0;
-    floor.position.y = 0;
-    floor.position.z = 0;
-    scene.add(floor);
-
- 
-
- 
-
+    
+    let theDate = new DateKeeper("2022-06-21",14,30,true);
+    const gui = new GUI();
+    gui.add( theDate, 'date' );  
+    gui.add( theDate, 'hour' ); 
+    gui.add( theDate, 'minute' ); 
+    gui.add( theDate, 'animate' ); 
     
 
-
-    function render(time) {
-        time *= 0.001;  // convert time to seconds
-
-        //camera.position.z -= 1;
-        //camera.rotation.z += 10;
-        //camera.rotation.y = time;
-       
-        renderer.render(scene, camera);
-       
-        requestAnimationFrame(render);
+    function resizeRendererToDisplaySize(renderer) {
+      const canvas = renderer.domElement;
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+      const needResize = canvas.width !== width || canvas.height !== height;
+      if (needResize) {
+        renderer.setSize(width, height, false);
       }
-
-    requestAnimationFrame(render);
-    */
+      return needResize;
+    }
 
     function render() {
 
-      /*if (resizeRendererToDisplaySize(renderer)) {
+      if (resizeRendererToDisplaySize(renderer)) {
         const canvas = renderer.domElement;
         camera.aspect = canvas.clientWidth / canvas.clientHeight;
         camera.updateProjectionMatrix();
-      }*/
-  
-      renderer.render(scene, camera);
+      }
+      
+      if (theDate.animate){
+        theDate.minute += 1;
+
+        
+        const pos = SunCalc.getPosition(theDate.getDate(),lat, lng)
+        console.log(theDate);
+        //console.log(pos);
+        sun.children[0].rotation.x = -pos.altitude
+        //sun.rotation.x = Math.PI * 0.5 - pos.altitude;
+        sun.rotation.z = pos.azimuth;
+      }
+
+        renderer.render(scene, camera);
+      
   
       requestAnimationFrame(render);
     }
@@ -121,23 +164,25 @@ function main() {
 
 function constructSunlight(scene){
 
-  const sunPos = [0,50,0];
-  const materialSun = new THREE.MeshPhongMaterial({color: 0xFFFF00});
-  const sun = new THREE.Mesh(new THREE.SphereGeometry(1), materialSun);
+  const sunsize = 85;
+
+  const sunPos = [0,sunsize,0];
+  const materialSun = new THREE.MeshPhongMaterial({color: 0xCCCC00});
+  const sun = new THREE.Mesh(new THREE.SphereGeometry(3), materialSun);
   sun.position.set(sunPos[0], sunPos[1], sunPos[2]);
  
-  const radius = 50;  
+  const radius = sunsize;  
   const segments = 240;  
-  const sunpath = new THREE.CircleGeometry(radius, segments);
-  const sunpathmat = new THREE.MeshPhongMaterial({color: 'blue', side: THREE.DoubleSide,});
+  const sunpath = new THREE.RingGeometry(sunsize,sunsize-0.5, segments);
+  const sunpathmat = new THREE.MeshPhongMaterial({color: 0xFFFF00, side: THREE.DoubleSide,});
   const sunpathmesh = new THREE.Mesh(sunpath, sunpathmat);
   
-  sunpathmesh.position.x =-10;
+  
   //sunpathmesh.rotation.z = THREE.MathUtils.degToRad(0); 
   //sunpathmesh.rotation.x = THREE.MathUtils.degToRad(45); 
   //sunpathmesh.rotation.y = THREE.MathUtils.degToRad(45); 
 
-  const sunlight = new THREE.SpotLight(0xFFFFFF, 0.3);
+  const sunlight = new THREE.SpotLight(0xFFFFFF, 0.4);
   sunlight.position.set(sunPos[0], sunPos[1], sunPos[2]);
   sunlight.castShadow = true;
   scene.add(sunlight);
@@ -148,10 +193,19 @@ function constructSunlight(scene){
 
   const allsun = new THREE.Group();
   allsun.add( sun );
-  allsun.add( sunpathmesh );
+  //allsun.add( sunpathmesh );
   allsun.add( sunlight );
   
-  return allsun;
+  allsun.rotation.x = -1.1;
+
+  const group = new THREE.Group();
+  group.add(allsun);
+
+  group.rotation.z = 1.0;
+
+  //group.position.x = -10;
+
+  return group;
 
 }
 
@@ -169,6 +223,8 @@ function drawPlane(scene, hasTexture:boolean = false){
     texture.wrapS = THREE.ClampToEdgeWrapping;
     texture.wrapT = THREE.ClampToEdgeWrapping;
     texture.magFilter = THREE.LinearFilter;
+    texture.offset.x = -0.07;
+    texture.offset.y = -0.20;
     //const  = planeSize / 2;
     //texture.repeat.set(repeats, repeats);
 
